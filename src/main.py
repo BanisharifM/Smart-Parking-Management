@@ -19,11 +19,7 @@ from ultralytics import YOLO
 
 
 @st.cache_data()
-def load_model(
-    path: str = "utils/runs/detect/train2/weights/best.pt",
-) -> ResnetModel:
-    """Retrieves the trained model and maps it to the CPU by default,
-    can also specify GPU here."""
+def load_model(path: str = "utils/runs/detect/train2/weights/best.pt") -> ResnetModel:
     model = YOLO(path, "v8")
     return model
 
@@ -51,28 +47,41 @@ def load_index_to_label_dict(path: str = "utils/class_label.json") -> dict:
 #         s3_files.append(s3_file_image)
 #     return s3_files
 
+
 # @st.cache_data()
-# def load_s3_file_structure(path: str = 'src/all_image_files.json') -> dict:
+# def load_s3_file_structure(path: str = "src/all_image_files.json") -> dict:
 #     """Retrieves JSON document outining the S3 file structure"""
-#     with open(path, 'r') as f:
+#     with open(path, "r") as f:
 #         return json.load(f)
+
 
 # @st.cache_data()
 # def load_list_of_images_available(
-#         all_image_files: dict,
-#         image_files_dtype: str,
-#         bird_species: str
-#         ) -> list:
+#     all_image_files: dict, image_files_dtype: str, bird_species: str
+# ) -> list:
 #     """Retrieves list of available images given the current selections"""
 #     species_dict = all_image_files.get(image_files_dtype)
 #     list_of_files = species_dict.get(bird_species)
 #     return list_of_files
 
 
-def predict(img: Image.Image, index_to_label_dict: dict, model, k: int) -> list:
-    formatted_predictions = model.predict(source=[img], conf=0.45, save=False)
-    #     formatted_predictions = model.predict_proba(img, k, index_to_label_dict)
-    return formatted_predictions
+# @st.cache_data()
+# def predict(img: Image.Image, index_to_label_dict: dict, model, k: int) -> list:
+#     """Transforming input image according to ImageNet paper
+#     The Resnet was initially trained on ImageNet dataset
+#     and because of the use of transfer learning, I froze all
+#     weights and only learned weights on the final layer.
+#     The weights of the first layer are still what was
+#     used in the ImageNet paper and we need to process
+#     the new images just like they did.
+
+#     This function transforms the image accordingly,
+#     puts it to the necessary device (cpu by default here),
+#     feeds the image through the model getting the output tensor,
+#     converts that output tensor to probabilities using Softmax,
+#     and then extracts and formats the top k predictions."""
+#     formatted_predictions = model.predict_proba(img, k, index_to_label_dict)
+#     return formatted_predictions
 
 
 if __name__ == "__main__":
@@ -156,4 +165,4 @@ if __name__ == "__main__":
 #     st.title(f"Here are three other images of the {prediction[0][0]}")
 
 #     st.image(images_from_s3)
-#     # st.title('How it works:')
+    # st.title('How it works:')
