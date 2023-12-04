@@ -66,7 +66,7 @@ def load_s3_file_structure(path: str = "src/all_image_files.json") -> dict:
 
 
 @st.cache_data()
-def predict(img: Image.Image) -> list:
+def predict(img) -> list:
     #     formatted_predictions = model.predict_proba(img, k, index_to_label_dict)
     formatted_predictions = model.predict(source=[img], conf=0.45, save=False)
     return formatted_predictions
@@ -106,24 +106,17 @@ def image_annotation(detect_params, frame, class_list, detection_colors):
     return frame
 
 
-# def cal_classes_counts(total_detections, detect_params, class_list):
-#     class_counts = {class_name: 0 for class_name in class_list}
-#     print("class_counts", class_counts)
-#     if total_detections != 0:
-#         for i in range(len(detect_params[0])):
-#             boxes = detect_params[0].boxes
-#             box = boxes[i]
-#             clsID = box.cls.numpy()[0]
-#             class_name = class_list[int(clsID)]
-#             if class_name in class_counts:
-#                 class_counts[class_name] += 1
-#             else:
-#                 # Optionally handle the case where class_name is not found
-#                 # You can choose to ignore, log, or handle this situation accordingly
-#                 pass
-#         #     class_counts[class_name] += 1
+def cal_classes_counts(total_detections, detect_params, class_list):
+    class_counts = {value: 0 for value in class_list.values()}
+    if total_detections != 0:
+        for i in range(len(detect_params[0])):
+            boxes = detect_params[0].boxes
+            box = boxes[i]
+            clsID = box.cls.numpy()[0]
+            class_name = class_list[int(clsID)]
+            class_counts[class_name] += 1
 
-#     return class_counts
+    return class_counts
 
 
 def cal_classes_percentage(total_detections, class_counts):
@@ -135,7 +128,57 @@ def cal_classes_percentage(total_detections, class_counts):
         print(f"Percentage of {class_name}: {class_percentages[class_name]:.2f}%")
 
 
+def save_uploaded_image(file, uploaded_path):  # if user uploaded file
+    os.makedirs(uploaded_path, exist_ok=True)
+    file_path = os.path.join(uploaded_path, file.name)
+    with open(file_path, "wb") as f:
+        f.write(file.getvalue())
+    st.write("File saved to:", file_path)
+
+
+# def save_image(image, output_path):
+#     output_directory = os.path.dirname(output_path)
+#     os.makedirs(output_directory, exist_ok=True)
+
+#     cv2.imwrite(output_path, image)
+
+
+#     if os.path.exists(output_path):
+#         print(f"Image saved successfully to: {output_path}")
+#     else:
+#         print("Failed to save the image.")
+
+
+def save_image(image,image_name, output_path):
+    # Ensure the directory exists, create it if it doesn't
+    output_directory = os.path.dirname(output_path)
+    os.makedirs(output_directory, exist_ok=True)
+
+    # Ensure the output path has a valid image extension (e.g., '.jpg')
+    valid_extensions = [".jpg", ".jpeg", ".png"]  # Add more extensions if needed
+    ext = os.path.splitext(output_path)[1].lower()
+    if ext not in valid_extensions:
+        output_path = os.path.splitext(output_path)[0] + image_name + ".jpg"
+
+    # Save the image
+    cv2.imwrite(output_path, image)
+
+    # Check if the file has been saved
+    if os.path.exists(output_path):
+        print(f"Image saved successfully to: {output_path}")
+    else:
+        print("Failed to save the image.")
+
+
+# Example usage:
+# Assuming you have an image 'frame' and a desired output path 'output_path'
+# save_image(frame, "/path/to/new_directory/saved_frame.jpg")
+
+
 if __name__ == "__main__":
+    uploaded_path = "uploaded_images/"
+    predicted_path = "predicted_images/"
+
     model = load_model()
     class_list = load_index_to_label_dict()
     all_image_files = load_s3_file_structure()
@@ -159,86 +202,30 @@ if __name__ == "__main__":
     }
     data_split_names = list(dtype_file_structure_mapping.keys())
 
-    print(file)
-    if file:  # if user uploaded file
-        temp_directory = "./uploaded_images"
-        os.makedirs(temp_directory, exist_ok=True)
-        file_path = os.path.join(temp_directory, file.name)
-        with open(file_path, "wb") as f:
-            f.write(file.getvalue())
-        st.write("File saved to:", file_path)
+    if file:
+        save_uploaded_image(file, uploaded_path)
 
-        img = Image.open(file)
+        # img = Image.open(file)
 
-        image_path = "uploaded_images/" + file.name  # Change this to your image path
+        image_path = uploaded_path + file.name
         frame = cv2.imread(image_path)
-        detect_params = predict(frame)
+        print(frame)
+        print("image_path: ", image_path)
+        prediction = predict(frame)
+        print("prediction", prediction)
 
-        print(detect_params)
+        predicted_image = image_annotation(
+            prediction, frame, class_list, detection_colors
+        )
+        save_image(predicted_image, file.name,predicted_path)
 
-        # total_detections = len(prediction[0]) if len(prediction[0]) != 0 else 1
+        total_detections = len(prediction[0]) if len(prediction[0]) != 0 else 1
 
-        # class_counts = cal_classes_counts(total_detections, prediction, class_names)
-        # print(class_counts)
+        class_counts = cal_classes_counts(total_detections, prediction, class_list)
+        print("class_counts", class_counts)
 
-        # class_sums = sum(class_counts.values())
-        # print("Class Counts:", class_sums)
-
-        # classes_percentage = cal_classes_percentage(total_detections, class_counts)
-
-        DP = detect_params[0].numpy()
-        print(DP)
-
-        class_counts = {value: 0 for value in class_list.values()}
-
-        total_detections = len(detect_params[0]) if len(detect_params[0]) != 0 else 1
-
-        if total_detections != 0:
-            for i in range(len(detect_params[0])):
-                boxes = detect_params[0].boxes
-                box = boxes[i]
-                clsID = box.cls.numpy()[0]
-                conf = box.conf.numpy()[0]
-                bb = box.xyxy.numpy()[0]
-
-                class_name = class_list[int(clsID)]
-                print("class_counts", class_counts)
-                print("class_list", class_list)
-                print("clsID", clsID)
-                print("class_name", class_name)
-                class_counts[class_name] += 1
-
-                cv2.rectangle(
-                    frame,
-                    (int(bb[0]), int(bb[1])),
-                    (int(bb[2]), int(bb[3])),
-                    detection_colors[int(clsID)],
-                    3,
-                )
-
-                # Display class name and confidence
-                font = cv2.FONT_HERSHEY_COMPLEX
-                cv2.putText(
-                    frame,
-                    class_list[int(clsID)] + " " + str(round(conf, 3)) + "%",
-                    (int(bb[0]), int(bb[1]) - 10),
-                    font,
-                    1,
-                    (255, 255, 255),
-                    2,
-                )
-
-        # class_sums = [class_counts[class_name] for class_name in class_list]
-        # print("Class Counts:", class_sums)
-
-        class_sums = sum(class_counts.values())
-        class_percentages = {
-            class_name: count / total_detections * 100
-            for class_name, count in class_counts.items()
-        }
-
-        for class_name, count in class_counts.items():
-            print(f"Percentage of {class_name}: {class_percentages[class_name]:.2f}%")
+        class_percentage = cal_classes_percentage(total_detections, class_counts)
+        print("class_percentage", class_percentage)
 
     # top_prediction = prediction[0][0]
     # available_images = all_image_files.get("train").get(top_prediction.upper())
