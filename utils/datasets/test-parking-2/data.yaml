@@ -1,0 +1,13 @@
+train: ../train/images
+val: ../valid/images
+test: ../test/images
+
+nc: 2
+names: ['Empty', 'Parked']
+
+roboflow:
+  workspace: iowa-state-university-krhld
+  project: test-parking
+  version: 2
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/iowa-state-university-krhld/test-parking/dataset/2
