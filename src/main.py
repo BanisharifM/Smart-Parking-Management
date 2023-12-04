@@ -106,18 +106,24 @@ def image_annotation(detect_params, frame, class_list, detection_colors):
     return frame
 
 
-def cal_classes_counts(total_detections, detect_params, class_list):
-    class_counts = {class_name: 0 for class_name in class_list}
-    print("class_counts", class_counts)
-    if total_detections != 0:
-        for i in range(len(detect_params[0])):
-            boxes = detect_params[0].boxes
-            box = boxes[i]
-            clsID = box.cls.numpy()[0]
-            class_name = class_list[int(clsID)]
-            class_counts[class_name] += 1
+# def cal_classes_counts(total_detections, detect_params, class_list):
+#     class_counts = {class_name: 0 for class_name in class_list}
+#     print("class_counts", class_counts)
+#     if total_detections != 0:
+#         for i in range(len(detect_params[0])):
+#             boxes = detect_params[0].boxes
+#             box = boxes[i]
+#             clsID = box.cls.numpy()[0]
+#             class_name = class_list[int(clsID)]
+#             if class_name in class_counts:
+#                 class_counts[class_name] += 1
+#             else:
+#                 # Optionally handle the case where class_name is not found
+#                 # You can choose to ignore, log, or handle this situation accordingly
+#                 pass
+#         #     class_counts[class_name] += 1
 
-    return class_counts
+#     return class_counts
 
 
 def cal_classes_percentage(total_detections, class_counts):
@@ -131,7 +137,7 @@ def cal_classes_percentage(total_detections, class_counts):
 
 if __name__ == "__main__":
     model = load_model()
-    class_names = load_index_to_label_dict()
+    class_list = load_index_to_label_dict()
     all_image_files = load_s3_file_structure()
     #     types_of_birds = sorted(list(all_image_files["test"].keys()))
     #     types_of_birds = [bird.title() for bird in types_of_birds]
@@ -166,29 +172,83 @@ if __name__ == "__main__":
 
         image_path = "uploaded_images/" + file.name  # Change this to your image path
         frame = cv2.imread(image_path)
-        prediction = predict(frame)
+        detect_params = predict(frame)
 
-        print(prediction)
+        print(detect_params)
 
-        total_detections = len(prediction[0]) if len(prediction[0]) != 0 else 1
+        # total_detections = len(prediction[0]) if len(prediction[0]) != 0 else 1
 
-        class_counts = cal_classes_counts(total_detections, prediction, class_names)
-        print(class_counts)
+        # class_counts = cal_classes_counts(total_detections, prediction, class_names)
+        # print(class_counts)
+
+        # class_sums = sum(class_counts.values())
+        # print("Class Counts:", class_sums)
+
+        # classes_percentage = cal_classes_percentage(total_detections, class_counts)
+
+        DP = detect_params[0].numpy()
+        print(DP)
+
+        class_counts = {value: 0 for value in class_list.values()}
+
+        total_detections = len(detect_params[0]) if len(detect_params[0]) != 0 else 1
+
+        if total_detections != 0:
+            for i in range(len(detect_params[0])):
+                boxes = detect_params[0].boxes
+                box = boxes[i]
+                clsID = box.cls.numpy()[0]
+                conf = box.conf.numpy()[0]
+                bb = box.xyxy.numpy()[0]
+
+                class_name = class_list[int(clsID)]
+                print("class_counts", class_counts)
+                print("class_list", class_list)
+                print("clsID", clsID)
+                print("class_name", class_name)
+                class_counts[class_name] += 1
+
+                cv2.rectangle(
+                    frame,
+                    (int(bb[0]), int(bb[1])),
+                    (int(bb[2]), int(bb[3])),
+                    detection_colors[int(clsID)],
+                    3,
+                )
+
+                # Display class name and confidence
+                font = cv2.FONT_HERSHEY_COMPLEX
+                cv2.putText(
+                    frame,
+                    class_list[int(clsID)] + " " + str(round(conf, 3)) + "%",
+                    (int(bb[0]), int(bb[1]) - 10),
+                    font,
+                    1,
+                    (255, 255, 255),
+                    2,
+                )
+
+        # class_sums = [class_counts[class_name] for class_name in class_list]
+        # print("Class Counts:", class_sums)
 
         class_sums = sum(class_counts.values())
-        print("Class Counts:", class_sums)
+        class_percentages = {
+            class_name: count / total_detections * 100
+            for class_name, count in class_counts.items()
+        }
 
-        classes_percentage = cal_classes_percentage(total_detections, class_counts)
+        for class_name, count in class_counts.items():
+            print(f"Percentage of {class_name}: {class_percentages[class_name]:.2f}%")
 
-        # top_prediction = prediction[0][0]
-        # available_images = all_image_files.get("train").get(top_prediction.upper())
-        # examples_of_species = np.random.choice(available_images, size=3)
-        # files_to_get_from_s3 = []
+    # top_prediction = prediction[0][0]
+    # available_images = all_image_files.get("train").get(top_prediction.upper())
+    # examples_of_species = np.random.choice(available_images, size=3)
+    # files_to_get_from_s3 = []
 
-        # for im_name in examples_of_species:
-        #     path = os.path.join("train", top_prediction.upper(), im_name)
-        #     files_to_get_from_s3.append(path)
-        # images_from_s3 = load_files_from_s3(keys=files_to_get_from_s3)
+    # for im_name in examples_of_species:
+    #     path = os.path.join("train", top_prediction.upper(), im_name)
+    #     files_to_get_from_s3.append(path)
+    # images_from_s3 = load_files_from_s3(keys=files_to_get_from_s3)
 
 #     else:
 #         dataset_type = st.sidebar.selectbox("Data Portion Type", data_split_names)
