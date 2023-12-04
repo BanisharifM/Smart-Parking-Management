@@ -34,25 +34,25 @@ def load_index_to_label_dict(path: str = "utils/class_label.json") -> dict:
     return index_to_class_label_dict
 
 
-# def load_files_from_s3(
-#     keys: list, bucket_name: str = "bird-classification-bucket"
-# ) -> list:
-#     """Retrieves files from S3 bucket"""
-#     s3 = boto3.client("s3")
-#     s3_files = []
-#     for key in keys:
-#         s3_file_raw = s3.get_object(Bucket=bucket_name, Key=key)
-#         s3_file_cleaned = s3_file_raw["Body"].read()
-#         s3_file_image = Image.open(BytesIO(s3_file_cleaned))
-#         s3_files.append(s3_file_image)
-#     return s3_files
+def load_files_from_s3(
+    keys: list, bucket_name: str = "bird-classification-bucket"
+) -> list:
+    """Retrieves files from S3 bucket"""
+    s3 = boto3.client("s3")
+    s3_files = []
+    for key in keys:
+        s3_file_raw = s3.get_object(Bucket=bucket_name, Key=key)
+        s3_file_cleaned = s3_file_raw["Body"].read()
+        s3_file_image = Image.open(BytesIO(s3_file_cleaned))
+        s3_files.append(s3_file_image)
+    return s3_files
 
 
-# @st.cache_data()
-# def load_s3_file_structure(path: str = "src/all_image_files.json") -> dict:
-#     """Retrieves JSON document outining the S3 file structure"""
-#     with open(path, "r") as f:
-#         return json.load(f)
+@st.cache_data()
+def load_s3_file_structure(path: str = "src/all_image_files.json") -> dict:
+    """Retrieves JSON document outining the S3 file structure"""
+    with open(path, "r") as f:
+        return json.load(f)
 
 
 # @st.cache_data()
@@ -65,39 +65,82 @@ def load_index_to_label_dict(path: str = "utils/class_label.json") -> dict:
 #     return list_of_files
 
 
-# @st.cache_data()
-# def predict(img: Image.Image, index_to_label_dict: dict, model, k: int) -> list:
-#     """Transforming input image according to ImageNet paper
-#     The Resnet was initially trained on ImageNet dataset
-#     and because of the use of transfer learning, I froze all
-#     weights and only learned weights on the final layer.
-#     The weights of the first layer are still what was
-#     used in the ImageNet paper and we need to process
-#     the new images just like they did.
+@st.cache_data()
+def predict(img: Image.Image) -> list:
+    #     formatted_predictions = model.predict_proba(img, k, index_to_label_dict)
+    formatted_predictions = model.predict(source=[img], conf=0.45, save=False)
+    return formatted_predictions
 
-#     This function transforms the image accordingly,
-#     puts it to the necessary device (cpu by default here),
-#     feeds the image through the model getting the output tensor,
-#     converts that output tensor to probabilities using Softmax,
-#     and then extracts and formats the top k predictions."""
-#     formatted_predictions = model.predict_proba(img, k, index_to_label_dict)
-#     return formatted_predictions
+
+def image_annotation(detect_params, frame, class_list, detection_colors):
+    total_detections = len(detect_params[0]) if len(detect_params[0]) != 0 else 1
+    if total_detections != 0:
+        for i in range(len(detect_params[0])):
+            boxes = detect_params[0].boxes
+            box = boxes[i]
+            clsID = box.cls.numpy()[0]
+            conf = box.conf.numpy()[0]
+            bb = box.xyxy.numpy()[0]
+            class_name = class_list[int(clsID)]
+            # class_counts[class_name] += 1
+
+            cv2.rectangle(
+                frame,
+                (int(bb[0]), int(bb[1])),
+                (int(bb[2]), int(bb[3])),
+                detection_colors[int(clsID)],
+                3,
+            )
+
+            # Display class name and confidence
+            font = cv2.FONT_HERSHEY_COMPLEX
+            cv2.putText(
+                frame,
+                class_list[int(clsID)] + " " + str(round(conf, 3)) + "%",
+                (int(bb[0]), int(bb[1]) - 10),
+                font,
+                1,
+                (255, 255, 255),
+                2,
+            )
+    return frame
+
+
+def cal_classes_counts(total_detections, detect_params, class_list):
+    class_counts = {class_name: 0 for class_name in class_list}
+    print("class_counts", class_counts)
+    if total_detections != 0:
+        for i in range(len(detect_params[0])):
+            boxes = detect_params[0].boxes
+            box = boxes[i]
+            clsID = box.cls.numpy()[0]
+            class_name = class_list[int(clsID)]
+            class_counts[class_name] += 1
+
+    return class_counts
+
+
+def cal_classes_percentage(total_detections, class_counts):
+    class_percentages = {
+        class_name: count / total_detections * 100
+        for class_name, count in class_counts.items()
+    }
+    for class_name in class_counts.items():
+        print(f"Percentage of {class_name}: {class_percentages[class_name]:.2f}%")
 
 
 if __name__ == "__main__":
     model = load_model()
-    index_to_class_label_dict = load_index_to_label_dict()
-#     all_image_files = load_s3_file_structure()
-#     types_of_birds = sorted(list(all_image_files["test"].keys()))
-#     types_of_birds = [bird.title() for bird in types_of_birds]
+    class_names = load_index_to_label_dict()
+    all_image_files = load_s3_file_structure()
+    #     types_of_birds = sorted(list(all_image_files["test"].keys()))
+    #     types_of_birds = [bird.title() for bird in types_of_birds]
+
+    detection_colors = [(252, 191, 73), (207, 233, 8)]
 
     st.title("Welcome To Project Eagle Vision!")
     instructions = """
-        Either upload your own image or select from
-        the sidebar to get a preconfigured image.
-        The image you select or upload will be fed
-        through the Deep Neural Network in real-time
-        and the output will be displayed to the screen.
+        SPM(Smart Parking Management) aims to transform this using machine learning, specifically the YOLO v8 algorithm, to analyze parking images, count cars, and spot available spaces.
         """
     st.write(instructions)
 
@@ -110,18 +153,42 @@ if __name__ == "__main__":
     }
     data_split_names = list(dtype_file_structure_mapping.keys())
 
-#     if file:  # if user uploaded file
-#         img = Image.open(file)
-#         prediction = predict(img, index_to_class_label_dict, model, k=5)
-#         top_prediction = prediction[0][0]
-#         available_images = all_image_files.get("train").get(top_prediction.upper())
-#         examples_of_species = np.random.choice(available_images, size=3)
-#         files_to_get_from_s3 = []
+    print(file)
+    if file:  # if user uploaded file
+        temp_directory = "./uploaded_images"
+        os.makedirs(temp_directory, exist_ok=True)
+        file_path = os.path.join(temp_directory, file.name)
+        with open(file_path, "wb") as f:
+            f.write(file.getvalue())
+        st.write("File saved to:", file_path)
 
-#         for im_name in examples_of_species:
-#             path = os.path.join("train", top_prediction.upper(), im_name)
-#             files_to_get_from_s3.append(path)
-#         images_from_s3 = load_files_from_s3(keys=files_to_get_from_s3)
+        img = Image.open(file)
+
+        image_path = "uploaded_images/" + file.name  # Change this to your image path
+        frame = cv2.imread(image_path)
+        prediction = predict(frame)
+
+        print(prediction)
+
+        total_detections = len(prediction[0]) if len(prediction[0]) != 0 else 1
+
+        class_counts = cal_classes_counts(total_detections, prediction, class_names)
+        print(class_counts)
+
+        class_sums = sum(class_counts.values())
+        print("Class Counts:", class_sums)
+
+        classes_percentage = cal_classes_percentage(total_detections, class_counts)
+
+        # top_prediction = prediction[0][0]
+        # available_images = all_image_files.get("train").get(top_prediction.upper())
+        # examples_of_species = np.random.choice(available_images, size=3)
+        # files_to_get_from_s3 = []
+
+        # for im_name in examples_of_species:
+        #     path = os.path.join("train", top_prediction.upper(), im_name)
+        #     files_to_get_from_s3.append(path)
+        # images_from_s3 = load_files_from_s3(keys=files_to_get_from_s3)
 
 #     else:
 #         dataset_type = st.sidebar.selectbox("Data Portion Type", data_split_names)
@@ -165,4 +232,4 @@ if __name__ == "__main__":
 #     st.title(f"Here are three other images of the {prediction[0][0]}")
 
 #     st.image(images_from_s3)
-    # st.title('How it works:')
+# st.title('How it works:')
