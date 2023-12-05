@@ -59,7 +59,6 @@ def load_s3_file_structure(path: str = "src/all_image_files.json") -> dict:
 def load_list_of_images_available(
     all_image_files: dict, image_files_dtype: str, bird_species: str
 ) -> list:
-    """Retrieves list of available images given the current selections"""
     species_dict = all_image_files.get(image_files_dtype)
     list_of_files = species_dict.get(bird_species)
     return list_of_files
@@ -179,7 +178,7 @@ if __name__ == "__main__":
     types_of_birds = sorted(list(all_image_files["test"].keys()))
     types_of_birds = [bird.title() for bird in types_of_birds]
 
-    detection_colors = [(252, 191, 73), (207, 233, 8)]
+    detection_colors = [(10, 239, 8), (252, 10, 73)]
 
     st.title("Welcome To Smart Parking Vision!")
     instructions = """
@@ -188,12 +187,7 @@ if __name__ == "__main__":
     st.write(instructions)
 
     file = st.file_uploader("Upload An Image")
-    dtype_file_structure_mapping = {
-        "All Images": "consolidated",
-        "Images Used To Train The Model": "train",
-        "Images Used To Tune The Model": "valid",
-        "Images The Model Has Never Seen": "test",
-    }
+    dtype_file_structure_mapping = {"Image": "consolidated", "Video": "train"}
     data_split_names = list(dtype_file_structure_mapping.keys())
 
     if file:
@@ -235,7 +229,15 @@ if __name__ == "__main__":
 
         file_path = os.path.join(predicted_path, file.name)
         img = Image.open(file_path)
-        resized_image = img.resize((336, 336))
+
+        new_height = 550  # Desired height
+
+        width, height = img.size
+        aspect_ratio = width / height
+        new_width = int(new_height * aspect_ratio)
+        resized_image = img.resize((new_width, new_height))
+
+        # resized_image = img.resize((336, 336))
         st.title("Here the image detected.")
         st.image(resized_image)
         df = pd.DataFrame(
@@ -255,24 +257,24 @@ if __name__ == "__main__":
         dataset_type = st.sidebar.selectbox("Data Portion Type", data_split_names)
         image_files_subset = dtype_file_structure_mapping[dataset_type]
 
-        selected_species = st.sidebar.selectbox("Bird Type", types_of_birds)
+        selected_species = st.sidebar.selectbox("Parking Type", types_of_birds)
         available_images = load_list_of_images_available(
             all_image_files, image_files_subset, selected_species.upper()
         )
         image_name = st.sidebar.selectbox("Image Name", available_images)
-        if image_files_subset == "consolidated":
-            s3_key_prefix = "consolidated/consolidated"
-        else:
-            s3_key_prefix = image_files_subset
-        key_path = os.path.join(s3_key_prefix, selected_species.upper(), image_name)
-        files_to_get_from_s3 = [key_path]
-        examples_of_species = np.random.choice(available_images, size=3)
+        # if image_files_subset == "consolidated":
+        #     s3_key_prefix = "consolidated/consolidated"
+        # else:
+        #     s3_key_prefix = image_files_subset
+        # key_path = os.path.join(s3_key_prefix, selected_species.upper(), image_name)
+        # files_to_get_from_s3 = [key_path]
+        # examples_of_species = np.random.choice(available_images, size=3)
 
-        for im in examples_of_species:
-            path = os.path.join(s3_key_prefix, selected_species.upper(), im)
-            files_to_get_from_s3.append(path)
-        images_from_s3 = load_files_from_s3(keys=files_to_get_from_s3)
-        img = images_from_s3.pop(0)
-        prediction = predict(img, class_list, model, 5)
+        # for im in examples_of_species:
+        #     path = os.path.join(s3_key_prefix, selected_species.upper(), im)
+        #     files_to_get_from_s3.append(path)
+        # images_from_s3 = load_files_from_s3(keys=files_to_get_from_s3)
+        # img = images_from_s3.pop(0)
+        # prediction = predict(img, class_list, model, 5)
 #     st.image(images_from_s3)
 # st.title('How it works:')
