@@ -393,36 +393,25 @@ if __name__ == "__main__":
         """
     st.write(instructions)
 
-    global data_type
-    data_type = "video"
-
+    #     file = st.file_uploader("Upload An Image")
+    file = st.file_uploader("Upload A Video", type=["png", "jpg", "jpeg"])
     dtype_file_structure_mapping = {"Image": "image", "Video": "video"}
     data_split_names = list(dtype_file_structure_mapping.keys())
 
-    if st.session_state.data_type == "image":
-        file = st.file_uploader("Upload An Image", type=["png", "jpg", "jpeg"])
-    elif st.session_state.data_type == "video":
-        file = st.file_uploader("Upload A Video", type=["mp4", "avi"])
+    global data_type
+    data_type = "image"
 
     if file:
-        print(data_type)
         if data_type == "image":
             detection_image(file)
         elif data_type == "video":
             file_path = save_uploaded_file(file)
-        processed_video_path = detection_video(file_path)
-        st.video(processed_video_path)
+            processed_video_path = detection_video(file_path)
+            st.video(processed_video_path)
         #     detection_video(file_path)
     else:
         data_type = st.sidebar.selectbox("Input Type", data_split_names)
-        print(data_split_names)
-        print(data_type)
-        if data_type == "image":
-            file = st.file_uploader("Upload An Image", type=["png", "jpg", "jpeg"])
-        elif data_type == "video":
-            file = st.file_uploader("Upload A Video", type=["mp4", "avi"])
-        # image_files_subset = dtyp
-        # e_file_structure_mapping[data_type]
+        # image_files_subset = dtype_file_structure_mapping[data_type]
 
         # selected_species = st.sidebar.selectbox("Confidence Rate", types_of_birds)
         # available_images = load_list_of_images_available(
