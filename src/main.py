@@ -4,8 +4,8 @@ from PIL import Image
 import os
 
 import boto3
-from botocore import UNSIGNED  # contact public s3 buckets anonymously
-from botocore.client import Config  # contact public s3 buckets anonymously
+from botocore import UNSIGNED 
+from botocore.client import Config
 
 import streamlit as st
 import pandas as pd
@@ -17,9 +17,11 @@ import cv2
 import numpy as np
 from ultralytics import YOLO
 
+import matplotlib.pyplot as plt
+
 
 @st.cache_data()
-def load_model(path: str = "utils/runs/detect/train2/weights/best.pt") -> ResnetModel:
+def load_model(path: str = "utils/runs/detect/train2/weights/best4.pt") -> ResnetModel:
     model = YOLO(path, "v8")
     return model
 
@@ -65,9 +67,9 @@ def load_list_of_images_available(
 
 
 @st.cache_data()
-def predict(img) -> list:
+def predict(img, conf_rate) -> list:
     #     formatted_predictions = model.predict_proba(img, k, index_to_label_dict)
-    formatted_predictions = model.predict(source=[img], conf=0.45, save=False)
+    formatted_predictions = model.predict(source=[img], conf=conf_rate, save=False)
     return formatted_predictions
 
 
@@ -144,7 +146,9 @@ def save_uploaded_image(file, uploaded_path):  # if user uploaded file
     file_path = os.path.join(uploaded_path, file.name)
     with open(file_path, "wb") as f:
         f.write(file.getvalue())
-    st.write("File saved to:", file_path)
+
+
+#     st.write("File saved to:", file_path)
 
 
 def save_image(image, image_name, output_path):
@@ -168,6 +172,100 @@ def save_image(image, image_name, output_path):
         print("Failed to save the image.")
 
 
+def generate_pie_chart(class_counts):
+    # Extract labels and sizes from class_counts
+    labels = list(class_counts.keys())
+    sizes = list(class_counts.values())
+
+    # Create a pie chart with transparent background
+    fig, ax = plt.subplots(figsize=(4, 3))
+    ax.pie(sizes, labels=labels, autopct="%1.1f%%", startangle=90)
+
+    # Set the pie chart background color to transparent
+    ax.patch.set_alpha(0.0)
+    #     fig.set_facecolor("lightgrey")
+
+    # Display the pie chart using Streamlit
+    st.pyplot(fig)
+
+
+# def generate_bar_chart(class_counts):
+#     # Extract labels and sizes from class_counts
+#     labels = list(class_counts.keys())
+#     sizes = list(class_counts.values())
+
+#     # Create a bar chart
+#     fig, ax = plt.subplots(figsize=(8, 6))  # Set width=8 inches, height=6 inches
+#     ax.bar(labels, sizes, color="skyblue")
+
+#     # Set the figure background color using RGB values
+#     fig.set_facecolor((0.7, 0.7, 0.7))  # Replace with your RGB values
+
+#     # Display the bar chart using Streamlit
+#     st.pyplot(fig)
+
+
+def generate_enhanced_bar_chart(class_counts):
+    # Extract labels and sizes from class_counts
+    labels = list(class_counts.keys())
+    sizes = list(class_counts.values())
+
+    # Create a bar chart with labels
+    fig, ax = plt.subplots(figsize=(10, 6))  # Set width=10 inches, height=6 inches
+    bars = ax.bar(labels, sizes, color="skyblue")
+
+    # Set the figure background color using RGB values
+    #     fig.set_facecolor((0.9, 0.9, 0.9))  # Replace with your RGB values
+
+    # Add labels with the number of items on each bar
+    for bar, size in zip(bars, sizes):
+        ax.text(
+            bar.get_x() + bar.get_width() / 2,
+            bar.get_height(),
+            f"{size}",
+            ha="center",
+            va="bottom",
+            color="black",
+            fontsize=10,
+        )
+
+    # Customize the appearance
+    ax.set_xlabel("Categories")
+    ax.set_ylabel("Count")
+    #     ax.set_title("Count of Items per Category")
+    ax.grid(axis="y", linestyle="--", alpha=0.7)
+
+    # Display the bar chart using Streamlit
+    st.pyplot(fig)
+
+
+def generate_enhanced_pie_chart(class_counts):
+    # Extract labels and sizes from class_counts
+    labels = list(class_counts.keys())
+    sizes = list(class_counts.values())
+
+    # Create a pie chart with improved aesthetics
+    fig, ax = plt.subplots(figsize=(8, 8))  # Set width=8 inches, height=8 inches
+    explode = [0.1] * len(labels)  # Explode all slices slightly for better visibility
+    ax.pie(
+        sizes,
+        labels=labels,
+        autopct="%1.1f%%",
+        startangle=90,
+        explode=explode,
+        shadow=True,
+    )
+
+    # Set the figure background color using RGB values
+    #     fig.set_facecolor((0.9, 0.9, 0.9))  # Replace with your RGB values
+
+    # Set aspect ratio to be equal, ensuring that pie is drawn as a circle
+    ax.axis("equal")
+
+    # Display the pie chart using Streamlit
+    st.pyplot(fig)
+
+
 if __name__ == "__main__":
     uploaded_path = "uploaded_images/"
     predicted_path = "predicted_images/"
@@ -180,9 +278,11 @@ if __name__ == "__main__":
 
     detection_colors = [(10, 239, 8), (252, 10, 73)]
 
-    st.title("Welcome To Smart Parking Vision!")
+    confidence_rate = 0.45
+
+    st.title("Smart Parking Management!")
     instructions = """
-        SPM(Smart Parking Management) aims to transform this using machine learning, specifically the YOLO v8 algorithm, to analyze parking images, count cars, and spot available spaces.
+        SPM (Smart Parking Management) aims to use machine learning, specifically the YOLO v8 algorithm, to analyze parking images and count cars and available spaces.
         """
     st.write(instructions)
 
@@ -199,8 +299,9 @@ if __name__ == "__main__":
         frame = cv2.imread(image_path)
         print(frame)
         print("image_path: ", image_path)
-        prediction = predict(frame)
+        prediction = predict(frame, confidence_rate)
         print("prediction", prediction)
+        print("confidence_rate", confidence_rate)
 
         predicted_image = image_annotation(
             prediction, frame, class_list, detection_colors
@@ -238,7 +339,7 @@ if __name__ == "__main__":
         resized_image = img.resize((new_width, new_height))
 
         # resized_image = img.resize((336, 336))
-        st.title("Here the image detected.")
+        st.title("Detected Output ")
         st.image(resized_image)
         df = pd.DataFrame(
             data=np.zeros((5, 2)),
@@ -250,18 +351,30 @@ if __name__ == "__main__":
         #     link = "https://en.wikipedia.org/wiki/" + p[0].lower().replace(" ", "_")
         #     df.iloc[idx, 0] = f'<a href="{link}" target="_blank">{p[0].title()}</a>'
         #     df.iloc[idx, 1] = p[1]
-        st.write(df.to_html(escape=False), unsafe_allow_html=True)
-        st.title(f"Here are three other images of the {prediction[0][0]}")
+        # st.write(df.to_html(escape=False), unsafe_allow_html=True)
+
+        # generate_pie_chart(class_counts)
+        # generate_bar_chart(class_counts)
+        st.title("Empety VS Parked Bar Chart")
+        generate_enhanced_bar_chart(class_counts)
+        st.title("Empety VS Parked Pie Chart")
+        generate_enhanced_pie_chart(class_counts)
+        # st.title(f"Here are three other images of the {prediction[0][0]}")
 
     else:
-        dataset_type = st.sidebar.selectbox("Data Portion Type", data_split_names)
+        dataset_type = st.sidebar.selectbox("Input Type", data_split_names)
         image_files_subset = dtype_file_structure_mapping[dataset_type]
 
-        selected_species = st.sidebar.selectbox("Parking Type", types_of_birds)
-        available_images = load_list_of_images_available(
-            all_image_files, image_files_subset, selected_species.upper()
+        # selected_species = st.sidebar.selectbox("Confidence Rate", types_of_birds)
+        # available_images = load_list_of_images_available(
+        #     all_image_files, image_files_subset, selected_species.upper()
+        # )
+        confidence_rate = (
+            st.sidebar.slider("Confidence Rate:", min_value=0, max_value=100, value=50)
+            / 100
         )
-        image_name = st.sidebar.selectbox("Image Name", available_images)
+        # st.write("Selected value:", confidence_rate)
+        # image_name = st.sidebar.selectbox("Image Name", available_images)
         # if image_files_subset == "consolidated":
         #     s3_key_prefix = "consolidated/consolidated"
         # else:
