@@ -4,7 +4,7 @@ from PIL import Image
 import os
 
 import boto3
-from botocore import UNSIGNED 
+from botocore import UNSIGNED
 from botocore.client import Config
 
 import streamlit as st
@@ -18,6 +18,9 @@ import numpy as np
 from ultralytics import YOLO
 
 import matplotlib.pyplot as plt
+import tempfile
+
+# data_type = "image"
 
 
 @st.cache_data()
@@ -94,13 +97,14 @@ def image_annotation(detect_params, frame, class_list, detection_colors):
             )
 
             # Display class name and confidence
-            font = cv2.FONT_HERSHEY_COMPLEX
+            font = cv2.FONT_HERSHEY_SIMPLEX
+            font_scale = 0.7
             cv2.putText(
                 frame,
                 class_list[int(clsID)] + " " + str(round(conf, 3)) + "%",
                 (int(bb[0]), int(bb[1]) - 10),
                 font,
-                1,
+                font_scale,
                 (255, 255, 255),
                 2,
             )
@@ -240,11 +244,9 @@ def generate_enhanced_bar_chart(class_counts):
 
 
 def generate_enhanced_pie_chart(class_counts):
-    # Extract labels and sizes from class_counts
     labels = list(class_counts.keys())
     sizes = list(class_counts.values())
 
-    # Create a pie chart with improved aesthetics
     fig, ax = plt.subplots(figsize=(8, 8))  # Set width=8 inches, height=8 inches
     explode = [0.1] * len(labels)  # Explode all slices slightly for better visibility
     ax.pie(
@@ -264,6 +266,111 @@ def generate_enhanced_pie_chart(class_counts):
 
     # Display the pie chart using Streamlit
     st.pyplot(fig)
+
+
+def detection_image(file):
+    img = Image.open(file)
+
+    save_uploaded_image(file, uploaded_path)
+
+    image_path = uploaded_path + file.name
+    frame = cv2.imread(image_path)
+    #     print(frame)
+    print("image_path: ", image_path)
+    prediction = predict(frame, confidence_rate)
+    #     print("prediction", prediction)
+    print("confidence_rate", confidence_rate)
+
+    predicted_image = image_annotation(prediction, frame, class_list, detection_colors)
+    save_image(predicted_image, file.name, predicted_path)
+
+    total_detections = len(prediction[0]) if len(prediction[0]) != 0 else 1
+
+    class_counts = cal_classes_counts(total_detections, prediction, class_list)
+    print("class_counts", class_counts)
+
+    class_percentage = cal_classes_percentage(total_detections, class_counts)
+    print("class_percentage", class_percentage)
+
+    file_path = os.path.join(predicted_path, file.name)
+    img = Image.open(file_path)
+
+    new_height = 550
+
+    width, height = img.size
+    aspect_ratio = width / height
+    new_width = int(new_height * aspect_ratio)
+    resized_image = img.resize((new_width, new_height))
+
+    # resized_image = img.resize((336, 336))
+    st.title("Detected Output ")
+    st.image(resized_image)
+    df = pd.DataFrame(
+        data=np.zeros((5, 2)),
+        columns=["Species", "Confidence Level"],
+        index=np.linspace(1, 5, 5, dtype=int),
+    )
+
+    st.title("Empety VS Parked Bar Chart")
+    generate_enhanced_bar_chart(class_counts)
+    st.title("Empety VS Parked Pie Chart")
+    generate_enhanced_pie_chart(class_counts)
+
+
+def detection_video(video_file_path):
+    cap = cv2.VideoCapture(video_file_path)
+    frame_step = 17
+    frame_position = 0
+    output_frames = []
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+
+    while frame_position < total_frames:
+        cap.set(cv2.CAP_PROP_POS_FRAMES, frame_position)
+        ret, frame = cap.read()
+
+        if not ret:
+            print("Can't receive frame (stream end?). Exiting ...")
+            break
+
+        frame_position += frame_step
+
+        prediction = predict(frame, confidence_rate)
+
+        predicted_image = image_annotation(
+            prediction, frame, class_list, detection_colors
+        )
+
+        output_frames.append(predicted_image)
+
+        if cv2.waitKey(1) == ord("q"):
+            break
+
+    cap.release()
+    cv2.destroyAllWindows()
+
+    output_video_path = (
+        "processed_video.mp4"  # Replace this with your desired video path
+    )
+    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+    out = cv2.VideoWriter(
+        output_video_path,
+        fourcc,
+        30.0,
+        (output_frames[0].shape[1], output_frames[0].shape[0]),
+    )
+
+    for frame in output_frames:
+        out.write(frame)
+
+    out.release()
+
+    return output_video_path
+
+
+def save_uploaded_file(uploaded_file):
+    with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+        temp_file.write(uploaded_file.read())
+        return temp_file.name
 
 
 if __name__ == "__main__":
@@ -286,84 +393,36 @@ if __name__ == "__main__":
         """
     st.write(instructions)
 
-    file = st.file_uploader("Upload An Image")
-    dtype_file_structure_mapping = {"Image": "consolidated", "Video": "train"}
+    global data_type
+    data_type = "video"
+
+    dtype_file_structure_mapping = {"Image": "image", "Video": "video"}
     data_split_names = list(dtype_file_structure_mapping.keys())
 
+    if st.session_state.data_type == "image":
+        file = st.file_uploader("Upload An Image", type=["png", "jpg", "jpeg"])
+    elif st.session_state.data_type == "video":
+        file = st.file_uploader("Upload A Video", type=["mp4", "avi"])
+
     if file:
-        img = Image.open(file)
-
-        save_uploaded_image(file, uploaded_path)
-
-        image_path = uploaded_path + file.name
-        frame = cv2.imread(image_path)
-        print(frame)
-        print("image_path: ", image_path)
-        prediction = predict(frame, confidence_rate)
-        print("prediction", prediction)
-        print("confidence_rate", confidence_rate)
-
-        predicted_image = image_annotation(
-            prediction, frame, class_list, detection_colors
-        )
-        save_image(predicted_image, file.name, predicted_path)
-
-        total_detections = len(prediction[0]) if len(prediction[0]) != 0 else 1
-
-        class_counts = cal_classes_counts(total_detections, prediction, class_list)
-        print("class_counts", class_counts)
-
-        class_percentage = cal_classes_percentage(total_detections, class_counts)
-        print("class_percentage", class_percentage)
-
-        # top_prediction = prediction[0][0]
-        # available_images = all_image_files.get("train").get(top_prediction.upper())
-        # examples_of_species = np.random.choice(available_images, size=3)
-        # files_to_get_from_s3 = []
-
-        # for im_name in examples_of_species:
-        #     path = os.path.join("train", top_prediction.upper(), im_name)
-        #     files_to_get_from_s3.append(path)
-        # images_from_s3 = load_files_from_s3(keys=files_to_get_from_s3)
-
-        #     st.title("Here is the image you've selected")
-
-        file_path = os.path.join(predicted_path, file.name)
-        img = Image.open(file_path)
-
-        new_height = 550  # Desired height
-
-        width, height = img.size
-        aspect_ratio = width / height
-        new_width = int(new_height * aspect_ratio)
-        resized_image = img.resize((new_width, new_height))
-
-        # resized_image = img.resize((336, 336))
-        st.title("Detected Output ")
-        st.image(resized_image)
-        df = pd.DataFrame(
-            data=np.zeros((5, 2)),
-            columns=["Species", "Confidence Level"],
-            index=np.linspace(1, 5, 5, dtype=int),
-        )
-
-        # for idx, p in enumerate(prediction):
-        #     link = "https://en.wikipedia.org/wiki/" + p[0].lower().replace(" ", "_")
-        #     df.iloc[idx, 0] = f'<a href="{link}" target="_blank">{p[0].title()}</a>'
-        #     df.iloc[idx, 1] = p[1]
-        # st.write(df.to_html(escape=False), unsafe_allow_html=True)
-
-        # generate_pie_chart(class_counts)
-        # generate_bar_chart(class_counts)
-        st.title("Empety VS Parked Bar Chart")
-        generate_enhanced_bar_chart(class_counts)
-        st.title("Empety VS Parked Pie Chart")
-        generate_enhanced_pie_chart(class_counts)
-        # st.title(f"Here are three other images of the {prediction[0][0]}")
-
+        print(data_type)
+        if data_type == "image":
+            detection_image(file)
+        elif data_type == "video":
+            file_path = save_uploaded_file(file)
+        processed_video_path = detection_video(file_path)
+        st.video(processed_video_path)
+        #     detection_video(file_path)
     else:
-        dataset_type = st.sidebar.selectbox("Input Type", data_split_names)
-        image_files_subset = dtype_file_structure_mapping[dataset_type]
+        data_type = st.sidebar.selectbox("Input Type", data_split_names)
+        print(data_split_names)
+        print(data_type)
+        if data_type == "image":
+            file = st.file_uploader("Upload An Image", type=["png", "jpg", "jpeg"])
+        elif data_type == "video":
+            file = st.file_uploader("Upload A Video", type=["mp4", "avi"])
+        # image_files_subset = dtyp
+        # e_file_structure_mapping[data_type]
 
         # selected_species = st.sidebar.selectbox("Confidence Rate", types_of_birds)
         # available_images = load_list_of_images_available(
