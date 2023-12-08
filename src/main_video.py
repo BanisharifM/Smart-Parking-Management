@@ -140,8 +140,8 @@ def cal_classes_percentage(total_detections, class_counts):
         for class_name, count in class_counts.items()
     }
 
-    for class_name, percentage in class_percentages.items():
-        print(f"Percentage of {class_name}: {percentage:.2f}%")
+    #     for class_name, percentage in class_percentages.items():
+    #         print(f"Percentage of {class_name}: {percentage:.2f}%")
 
     return class_percentages
 
@@ -288,7 +288,7 @@ def detection_image(file):
     total_detections = len(prediction[0]) if len(prediction[0]) != 0 else 1
 
     class_counts = cal_classes_counts(total_detections, prediction, class_list)
-    print("class_counts", class_counts)
+#     print("class_counts", class_counts)
 
     #     class_percentage = cal_classes_percentage(total_detections, class_counts)
     #     print("class_percentage", class_percentage)

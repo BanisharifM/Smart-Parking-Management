@@ -71,7 +71,6 @@ def load_list_of_images_available(
 
 @st.cache_data()
 def predict(img, conf_rate) -> list:
-    #     formatted_predictions = model.predict_proba(img, k, index_to_label_dict)
     formatted_predictions = model.predict(source=[img], conf=conf_rate, save=False)
     return formatted_predictions
 
