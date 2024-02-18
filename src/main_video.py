@@ -21,8 +21,6 @@ import matplotlib.pyplot as plt
 import tempfile
 from datetime import datetime
 
-# data_type = "image"
-
 
 @st.cache_data()
 def load_model(path: str = "utils/runs/detect/train2/weights/best4.pt") -> ResnetModel:
@@ -97,7 +95,6 @@ def image_annotation(detect_params, frame, class_list, detection_colors):
                 3,
             )
 
-            # Display class name and confidence
             font = cv2.FONT_HERSHEY_SIMPLEX
             font_scale = 0.4
             cv2.putText(
@@ -140,37 +137,27 @@ def cal_classes_percentage(total_detections, class_counts):
         for class_name, count in class_counts.items()
     }
 
-    #     for class_name, percentage in class_percentages.items():
-    #         print(f"Percentage of {class_name}: {percentage:.2f}%")
-
     return class_percentages
 
 
-def save_uploaded_image(file, uploaded_path):  # if user uploaded file
+def save_uploaded_image(file, uploaded_path):
     os.makedirs(uploaded_path, exist_ok=True)
     file_path = os.path.join(uploaded_path, file.name)
     with open(file_path, "wb") as f:
         f.write(file.getvalue())
 
 
-#     st.write("File saved to:", file_path)
-
-
 def save_image(image, image_name, output_path):
-    # Ensure the directory exists, create it if it doesn't
     output_directory = os.path.dirname(output_path)
     os.makedirs(output_directory, exist_ok=True)
 
-    # Ensure the output path has a valid image extension (e.g., '.jpg')
     valid_extensions = [".jpg", ".jpeg", ".png"]  # Add more extensions if needed
     ext = os.path.splitext(output_path)[1].lower()
     if ext not in valid_extensions:
         output_path = os.path.splitext(output_path)[0] + image_name
 
-    # Save the image
     cv2.imwrite(output_path, image)
 
-    # Check if the file has been saved
     if os.path.exists(output_path):
         print(f"Image saved successfully to: {output_path}")
     else:
@@ -178,51 +165,24 @@ def save_image(image, image_name, output_path):
 
 
 def generate_pie_chart(class_counts):
-    # Extract labels and sizes from class_counts
     labels = list(class_counts.keys())
     sizes = list(class_counts.values())
 
-    # Create a pie chart with transparent background
     fig, ax = plt.subplots(figsize=(4, 3))
     ax.pie(sizes, labels=labels, autopct="%1.1f%%", startangle=90)
 
-    # Set the pie chart background color to transparent
     ax.patch.set_alpha(0.0)
-    #     fig.set_facecolor("lightgrey")
 
-    # Display the pie chart using Streamlit
     st.pyplot(fig)
 
 
-# def generate_bar_chart(class_counts):
-#     # Extract labels and sizes from class_counts
-#     labels = list(class_counts.keys())
-#     sizes = list(class_counts.values())
-
-#     # Create a bar chart
-#     fig, ax = plt.subplots(figsize=(8, 6))  # Set width=8 inches, height=6 inches
-#     ax.bar(labels, sizes, color="skyblue")
-
-#     # Set the figure background color using RGB values
-#     fig.set_facecolor((0.7, 0.7, 0.7))  # Replace with your RGB values
-
-#     # Display the bar chart using Streamlit
-#     st.pyplot(fig)
-
-
 def generate_enhanced_bar_chart(class_counts):
-    # Extract labels and sizes from class_counts
     labels = list(class_counts.keys())
     sizes = list(class_counts.values())
 
-    # Create a bar chart with labels
     fig, ax = plt.subplots(figsize=(10, 6))  # Set width=10 inches, height=6 inches
     bars = ax.bar(labels, sizes, color="skyblue")
 
-    # Set the figure background color using RGB values
-    #     fig.set_facecolor((0.9, 0.9, 0.9))  # Replace with your RGB values
-
-    # Add labels with the number of items on each bar
     for bar, size in zip(bars, sizes):
         ax.text(
             bar.get_x() + bar.get_width() / 2,
@@ -234,13 +194,10 @@ def generate_enhanced_bar_chart(class_counts):
             fontsize=10,
         )
 
-    # Customize the appearance
     ax.set_xlabel("Categories")
     ax.set_ylabel("Count")
-    #     ax.set_title("Count of Items per Category")
     ax.grid(axis="y", linestyle="--", alpha=0.7)
 
-    # Display the bar chart using Streamlit
     st.pyplot(fig)
 
 
@@ -248,8 +205,8 @@ def generate_enhanced_pie_chart(class_counts):
     labels = list(class_counts.keys())
     sizes = list(class_counts.values())
 
-    fig, ax = plt.subplots(figsize=(8, 8))  # Set width=8 inches, height=8 inches
-    explode = [0.1] * len(labels)  # Explode all slices slightly for better visibility
+    fig, ax = plt.subplots(figsize=(8, 8))
+    explode = [0.1] * len(labels)
     ax.pie(
         sizes,
         labels=labels,
@@ -259,13 +216,8 @@ def generate_enhanced_pie_chart(class_counts):
         shadow=True,
     )
 
-    # Set the figure background color using RGB values
-    #     fig.set_facecolor((0.9, 0.9, 0.9))  # Replace with your RGB values
-
-    # Set aspect ratio to be equal, ensuring that pie is drawn as a circle
     ax.axis("equal")
 
-    # Display the pie chart using Streamlit
     st.pyplot(fig)
 
 
@@ -276,10 +228,8 @@ def detection_image(file):
 
     image_path = uploaded_path + file.name
     frame = cv2.imread(image_path)
-    #     print(frame)
     print("image_path: ", image_path)
     prediction = predict(frame, confidence_rate)
-    #     print("prediction", prediction)
     print("confidence_rate", confidence_rate)
 
     predicted_image = image_annotation(prediction, frame, class_list, detection_colors)
@@ -288,10 +238,6 @@ def detection_image(file):
     total_detections = len(prediction[0]) if len(prediction[0]) != 0 else 1
 
     class_counts = cal_classes_counts(total_detections, prediction, class_list)
-#     print("class_counts", class_counts)
-
-    #     class_percentage = cal_classes_percentage(total_detections, class_counts)
-    #     print("class_percentage", class_percentage)
 
     file_path = os.path.join(predicted_path, file.name)
     img = Image.open(file_path)
@@ -348,10 +294,6 @@ def detection_video(video_file_path):
 
     cap.release()
     cv2.destroyAllWindows()
-
-    #     output_video_path = (
-    #         "processed_video.mp4"  # Replace this with your desired video path
-    #     )
 
     output_directory = "predicted_video/"
     current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -416,34 +358,9 @@ if __name__ == "__main__":
             processed_video_path = detection_video(file_path)
             print(processed_video_path)
             st.video(processed_video_path)
-        #     detection_video(file_path)
     else:
         data_type = st.sidebar.selectbox("Input Type", data_split_names)
-        # image_files_subset = dtype_file_structure_mapping[data_type]
-
-        # selected_species = st.sidebar.selectbox("Confidence Rate", types_of_birds)
-        # available_images = load_list_of_images_available(
-        #     all_image_files, image_files_subset, selected_species.upper()
-        # )
         confidence_rate = (
             st.sidebar.slider("Confidence Rate:", min_value=0, max_value=100, value=50)
             / 100
         )
-        # st.write("Selected value:", confidence_rate)
-        # image_name = st.sidebar.selectbox("Image Name", available_images)
-        # if image_files_subset == "consolidated":
-        #     s3_key_prefix = "consolidated/consolidated"
-        # else:
-        #     s3_key_prefix = image_files_subset
-        # key_path = os.path.join(s3_key_prefix, selected_species.upper(), image_name)
-        # files_to_get_from_s3 = [key_path]
-        # examples_of_species = np.random.choice(available_images, size=3)
-
-        # for im in examples_of_species:
-        #     path = os.path.join(s3_key_prefix, selected_species.upper(), im)
-        #     files_to_get_from_s3.append(path)
-        # images_from_s3 = load_files_from_s3(keys=files_to_get_from_s3)
-        # img = images_from_s3.pop(0)
-        # prediction = predict(img, class_list, model, 5)
-#     st.image(images_from_s3)
-# st.title('How it works:')
