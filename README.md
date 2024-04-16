@@ -24,3 +24,24 @@ Our model effectively identifies and classifies parking spaces, providing real-t
 - **Real-world Testing:** Plans to test and optimize the model under various urban conditions.
 - **Expand Parking Space Diversity:** Aims to enhance the model's ability to recognize different types of parking spaces.
 
+### Contributors
+
+<table>
+<tr>
+    <td align="center" style="word-wrap: break-word; width: 150.0; height: 150.0">
+        <a href=https://github.com/banisharifm>
+            <img src=https://avatars.githubusercontent.com/u/41099498?v=4 width="100;"  style="border-radius:50%;align-items:center;justify-content:center;overflow:hidden;padding-top:10px" alt=BanisharifM/>
+            <br />
+            <sub style="font-size:14px"><b>Mahdi Banisharif</b></sub>
+        </a>
+    </td>
+    <td align="center" style="word-wrap: break-word; width: 150.0; height: 150.0">
+        <a href=https://github.com/Sadegh-Jafari>
+            <img src=https://avatars.githubusercontent.com/u/155206906?v=4 width="100;"  style="border-radius:50%;align-items:center;justify-content:center;overflow:hidden;padding-top:10px" alt=Sadegh-Jafari Harrington/>
+            <br />
+            <sub style="font-size:14px"><b>Sadegh Jafari</b></sub>
+        </a>
+    </td>
+</tr>
+</table>
+
