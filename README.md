@@ -14,7 +14,8 @@ Here is a video demonstration of the parking detection in action:
 https://github.com/BanisharifM/Smart-Parking-Management/assets/41099498/7e07154e-1f79-4b7e-a537-a293a6546e2b
 
 And here's an example of detected parking spaces:
-![Image Example](predicted_images/Screenshot 2023-12-04 at 8.24.51 PM.png)
+![Image Example](predicted_images/Screenshot%202023-12-04%20at%208.24.51%20PM.png)
+
 
 ## Results
 Our model effectively identifies and classifies parking spaces, providing real-time updates that help reduce urban parking-related stress and congestion.
